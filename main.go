@@ -11,6 +11,8 @@ import (
 	"orderfc/models"
 	"orderfc/routes"
 
+	"orderfc/kafka"
+
 	"github.com/gin-gonic/gin"
 )
 

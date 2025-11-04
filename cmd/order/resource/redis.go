@@ -23,4 +23,3 @@ func InitRedis(cfg config.RedisConfig) *redis.Client {
 	log.Logger.Info().Msg("Connected to Redis")
 	return rdb
 }
-

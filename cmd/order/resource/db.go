@@ -24,4 +24,3 @@ func InitDB(cfg config.DatabaseConfig) *gorm.DB {
 	log.Logger.Info().Msg("Connected to database")
 	return db
 }
-

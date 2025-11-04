@@ -4,6 +4,7 @@ type Config struct {
 	App      AppConfig      `yaml:"app" validate:"required"`
 	Database DatabaseConfig `yaml:"database" validate:"required"`
 	Redis    RedisConfig    `yaml:"redis" validate:"required"`
+	Kafka    KafkaConfig    `yaml:"kafka" validate:"required"`
 }
 
 type AppConfig struct {

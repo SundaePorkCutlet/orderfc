@@ -14,10 +14,10 @@ import (
 
 type OrderUsecase struct {
 	OrderService  service.OrderService
-	KafkaProducer kafka.KafkaProducer
+	KafkaProducer *kafka.KafkaProducer
 }
 
-func NewOrderUsecase(orderService service.OrderService, kafkaProducer kafka.KafkaProducer) *OrderUsecase {
+func NewOrderUsecase(orderService service.OrderService, kafkaProducer *kafka.KafkaProducer) *OrderUsecase {
 	return &OrderUsecase{OrderService: orderService, KafkaProducer: kafkaProducer}
 }
 

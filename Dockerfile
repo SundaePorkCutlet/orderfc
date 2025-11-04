@@ -10,8 +10,9 @@ RUN go mod download
 # 소스 코드 복사
 COPY . .
 
-# 애플리케이션 빌드
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# vendor 동기화 및 애플리케이션 빌드 (vendor 사용)
+RUN go mod vendor && \
+    CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -installsuffix cgo -o main .
 
 # 최종 실행 스테이지
 FROM alpine:latest
