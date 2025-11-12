@@ -53,3 +53,11 @@ func (s *OrderService) GetOrderHistoryByUserId(ctx context.Context, params model
 	}
 	return results, nil
 }
+
+func (s *OrderService) GetProductInfo(ctx context.Context, productID int64) (models.Product, error) {
+	product, err := s.OrderRepo.GetProductInfo(ctx, productID)
+	if err != nil {
+		return models.Product{}, err
+	}
+	return product, nil
+}

@@ -34,7 +34,7 @@ func main() {
 
 	defer kafkaProducer.Close()
 	// 의존성 주입
-	orderRepository := repository.NewOrderRepository(db, redis)
+	orderRepository := repository.NewOrderRepository(db, redis, cfg.Product.Host)
 	orderService := service.NewOrderService(*orderRepository)
 	orderUsecase := usecase.NewOrderUsecase(*orderService, kafkaProducer)
 	orderHandler := handler.NewOrderHandler(*orderUsecase)

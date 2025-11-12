@@ -5,10 +5,15 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database" validate:"required"`
 	Redis    RedisConfig    `yaml:"redis" validate:"required"`
 	Kafka    KafkaConfig    `yaml:"kafka" validate:"required"`
+	Product  ProductConfig  `yaml:"product" validate:"required"`
 }
 
 type AppConfig struct {
 	Port string `yaml:"port" validate:"required"`
+}
+
+type ProductConfig struct {
+	Host string `yaml:"host" validate:"required"`
 }
 
 type DatabaseConfig struct {

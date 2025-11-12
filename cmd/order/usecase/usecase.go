@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"orderfc/cmd/order/service"
 	"orderfc/infrastructure/constant"
 	"orderfc/infrastructure/log"
@@ -85,19 +86,22 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 
 func (u *OrderUsecase) validateProducts(ctx context.Context, items []models.CheckoutItem) error {
 
-	seen := map[int64]bool{}
 	for _, item := range items {
+		productInfo, err := u.OrderService.GetProductInfo(ctx, item.ProductID)
+		if err != nil {
+			return err
+		}
 
-		if seen[item.ProductID] {
-			return errors.New("duplicate product id")
+		if productInfo.Stock < item.Quantity {
+			return fmt.Errorf("product stock is not enough for product %d", item.ProductID)
 		}
 
 		if item.Quantity <= 0 || item.Quantity > 1000 {
-			return errors.New("quantity must be between 1 and 1000")
+			return fmt.Errorf("quantity must be between 1 and 1000 for product %d", item.ProductID)
 		}
 
-		if item.Price <= 0 {
-			return errors.New("price must be greater than 0")
+		if item.Price != productInfo.Price {
+			return fmt.Errorf("price mismatch for product %d", item.ProductID)
 		}
 	}
 	return nil
@@ -137,4 +141,12 @@ func (u *OrderUsecase) GetOrderHistoryByUserId(ctx context.Context, params model
 		return nil, err
 	}
 	return results, nil
+}
+
+func (u *OrderUsecase) GetProductInfo(ctx context.Context, productID int64) (models.Product, error) {
+	product, err := u.OrderService.GetProductInfo(ctx, productID)
+	if err != nil {
+		return models.Product{}, err
+	}
+	return product, nil
 }
