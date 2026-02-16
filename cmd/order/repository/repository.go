@@ -52,3 +52,4 @@ func (r *OrderRepository) GetProductInfo(ctx context.Context, productID int64) (
 
 	return product, nil
 }
+

@@ -2,11 +2,11 @@ app:
   port: 8083
 
 database:
-  host: postgres
+  host: postgres-order
   port: 5432
   user: admin
   password: admin
-  name: postgres
+  name: order
 
 redis:
   host: redis
