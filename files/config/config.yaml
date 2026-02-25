@@ -23,3 +23,8 @@ kafka:
 
 product:
   host: http://productfc:8081
+
+tracing:
+  endpoint: jaeger:4318
+  service_name: orderfc
+  enabled: true

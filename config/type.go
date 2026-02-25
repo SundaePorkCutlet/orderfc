@@ -6,6 +6,13 @@ type Config struct {
 	Redis    RedisConfig    `yaml:"redis" validate:"required"`
 	Kafka    KafkaConfig    `yaml:"kafka" validate:"required"`
 	Product  ProductConfig  `yaml:"product" validate:"required"`
+	Tracing  TracingConfig  `yaml:"tracing"`
+}
+
+type TracingConfig struct {
+	Endpoint    string `yaml:"endpoint" mapstructure:"endpoint"`
+	ServiceName string `yaml:"service_name" mapstructure:"service_name"`
+	Enabled     bool   `yaml:"enabled" mapstructure:"enabled"`
 }
 
 type AppConfig struct {

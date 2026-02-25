@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"orderfc/cmd/order/handler"
 	"orderfc/cmd/order/repository"
 	"orderfc/cmd/order/resource"
@@ -10,6 +11,7 @@ import (
 	"orderfc/infrastructure/log"
 	"orderfc/models"
 	"orderfc/routes"
+	"orderfc/tracing"
 
 	"orderfc/kafka"
 
@@ -20,6 +22,14 @@ func main() {
 	cfg := config.LoadConfig()
 
 	log.SetupLogger()
+
+	// Tracing 초기화
+	shutdownTracer, err := tracing.InitTracer(cfg.Tracing)
+	if err != nil {
+		log.Logger.Warn().Err(err).Msg("Failed to initialize tracing - continuing without tracing")
+	} else {
+		defer shutdownTracer(context.Background())
+	}
 
 	redis := resource.InitRedis(cfg.Redis)
 	db := resource.InitDB(cfg.Database)
@@ -41,6 +51,11 @@ func main() {
 
 	port := cfg.App.Port
 	router := gin.Default()
+
+	// 트레이싱 미들웨어 추가
+	if cfg.Tracing.Enabled {
+		router.Use(tracing.GinMiddleware(cfg.Tracing.ServiceName))
+	}
 
 	// 라우트 설정
 	routes.SetupRoutes(router, orderHandler)
