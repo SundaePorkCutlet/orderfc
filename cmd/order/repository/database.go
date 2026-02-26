@@ -112,3 +112,33 @@ func (r *OrderRepository) GetOrderHistoryByUserId(ctx context.Context, params mo
 
 	return results, nil
 }
+
+func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int64, status int) error {
+	err := r.Database.WithContext(ctx).Table("orders").Model(&models.Order{}).Where("id = ?", orderID).Updates(map[string]interface{}{
+		"status":      status,
+		"update_time": time.Now(),
+	}).Where("id = ?", orderID).Error
+	if err != nil {
+		log.Logger.Error().Err(err).Int64("order_id", orderID).Msg("Failed to update order status")
+		return err
+	}
+	return nil
+}
+
+func (r *OrderRepository) GetOrderInfoByOrderID(ctx context.Context, orderID int64) (*models.Order, error) {
+	var order models.Order
+	err := r.Database.WithContext(ctx).Table("orders").Where("id = ?", orderID).First(&order).Error
+	if err != nil {
+		return nil, err
+	}
+	return &order, nil
+}
+
+func (r *OrderRepository) GetOrderDetailByOrderID(ctx context.Context, orderID int64) (*models.OrderDetail, error) {
+	var orderDetail models.OrderDetail
+	err := r.Database.WithContext(ctx).Table("order_details").Where("id = ?", orderID).First(&orderDetail).Error
+	if err != nil {
+		return nil, err
+	}
+	return &orderDetail, nil
+}

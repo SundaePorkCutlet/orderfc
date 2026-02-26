@@ -37,3 +37,15 @@ func (p *KafkaProducer) PublishOrderCreated(ctx context.Context, event interface
 	}
 	return p.writer.WriteMessages(ctx, msg)
 }
+
+func (p *KafkaProducer) PublishProductStockUpdated(ctx context.Context, event models.ProductStockUpdatedEvent) error {
+	json, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	msg := kafka.Message{
+		Key:   []byte(fmt.Sprintf("order-%d", event.OrderID)),
+		Value: json,
+	}
+	return p.writer.WriteMessages(ctx, msg)
+}

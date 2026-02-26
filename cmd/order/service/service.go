@@ -61,3 +61,27 @@ func (s *OrderService) GetProductInfo(ctx context.Context, productID int64) (mod
 	}
 	return product, nil
 }
+
+func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID int64, status int) error {
+	err := s.OrderRepo.UpdateOrderStatus(ctx, orderID, status)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *OrderService) GetOrderInfoByOrderID(ctx context.Context, orderID int64) (*models.Order, error) {
+	order, err := s.OrderRepo.GetOrderInfoByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (s *OrderService) GetOrderDetailByOrderID(ctx context.Context, orderID int64) (*models.OrderDetail, error) {
+	orderDetail, err := s.OrderRepo.GetOrderDetailByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	return orderDetail, nil
+}

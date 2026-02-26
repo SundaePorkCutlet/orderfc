@@ -60,6 +60,10 @@ func main() {
 	// 라우트 설정
 	routes.SetupRoutes(router, orderHandler)
 
+	kafkaPaymentSuccessConsumer := kafka.NewPaymentSuccessEvent(cfg.Kafka.Brokers, "payment.success", orderService, kafkaProducer)
+	go kafkaPaymentSuccessConsumer.Start(context.Background())
+	log.Logger.Info().Msg("Kafka payment success consumer started")
+
 	log.Logger.Info().Msgf("Server is running on port %s", port)
 	router.Run(":" + port)
 }
