@@ -42,7 +42,7 @@ type CheckoutRequest struct {
 	IdempotencyToken string         `json:"idempotency_token"`
 }
 
-type OrderHistoryparam struct {
+type OrderHistoryParam struct {
 	UserID int64 `json:"user_id"`
 	Status int   `json:"status"`
 }

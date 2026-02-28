@@ -27,13 +27,13 @@ func (s *OrderService) SaveIdempotencyToken(ctx context.Context, idempotencyToke
 func (s *OrderService) SaveOrderAndOrderDetail(ctx context.Context, order *models.Order, orderDetail *models.OrderDetail) (int64, error) {
 	var orderId int64
 	err := s.OrderRepo.WithTransaction(ctx, func(tx *gorm.DB) error {
-		err := s.OrderRepo.InsertOrderDetailtx(ctx, tx, orderDetail)
+		err := s.OrderRepo.InsertOrderDetailTx(ctx, tx, orderDetail)
 		if err != nil {
 			return err
 		}
 
 		order.OrderDetailID = orderDetail.ID
-		err = s.OrderRepo.InsertOrdertx(ctx, tx, order)
+		err = s.OrderRepo.InsertOrderTx(ctx, tx, order)
 		if err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func (s *OrderService) SaveOrderAndOrderDetail(ctx context.Context, order *model
 	return orderId, nil
 }
 
-func (s *OrderService) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryparam) ([]models.OrderHistoryResponse, error) {
+func (s *OrderService) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryParam) ([]models.OrderHistoryResponse, error) {
 	results, err := s.OrderRepo.GetOrderHistoryByUserId(ctx, params)
 	if err != nil {
 		return nil, err
@@ -78,8 +78,8 @@ func (s *OrderService) GetOrderInfoByOrderID(ctx context.Context, orderID int64)
 	return order, nil
 }
 
-func (s *OrderService) GetOrderDetailByOrderID(ctx context.Context, orderID int64) (*models.OrderDetail, error) {
-	orderDetail, err := s.OrderRepo.GetOrderDetailByOrderID(ctx, orderID)
+func (s *OrderService) GetOrderDetailByID(ctx context.Context, orderDetailID int64) (*models.OrderDetail, error) {
+	orderDetail, err := s.OrderRepo.GetOrderDetailByID(ctx, orderDetailID)
 	if err != nil {
 		return nil, err
 	}

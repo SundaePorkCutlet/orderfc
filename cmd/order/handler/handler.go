@@ -64,7 +64,7 @@ func (h *OrderHandler) CheckOutOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetOrderHistoryByUserId(c *gin.Context) {
-	var params models.OrderHistoryparam
+	var params models.OrderHistoryParam
 
 	userIdStr, ok := c.Get("user_id")
 	if !ok {

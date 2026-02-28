@@ -33,12 +33,12 @@ func (r *OrderRepository) WithTransaction(ctx context.Context, fn func(tx *gorm.
 	return nil
 }
 
-func (r *OrderRepository) InsertOrdertx(ctx context.Context, tx *gorm.DB, order *models.Order) error {
+func (r *OrderRepository) InsertOrderTx(ctx context.Context, tx *gorm.DB, order *models.Order) error {
 	err := tx.WithContext(ctx).Create(order).Error
 	return err
 }
 
-func (r *OrderRepository) InsertOrderDetailtx(ctx context.Context, tx *gorm.DB, orderDetail *models.OrderDetail) error {
+func (r *OrderRepository) InsertOrderDetailTx(ctx context.Context, tx *gorm.DB, orderDetail *models.OrderDetail) error {
 	err := tx.WithContext(ctx).Create(orderDetail).Table("order_details").Error
 	return err
 }
@@ -69,11 +69,10 @@ func (r *OrderRepository) SaveIdempotencyToken(ctx context.Context, idempotencyT
 
 }
 
-func (r *OrderRepository) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryparam) ([]models.OrderHistoryResponse, error) {
+func (r *OrderRepository) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryParam) ([]models.OrderHistoryResponse, error) {
 	var queryResults []models.OrderHistoryResult
 	query := r.Database.WithContext(ctx).Table("orders").
-		Select(`orders.id, orders.amount, orders.total_qty, orders.payment_method, orders.shipping_address, orders.create_time, 
-		orders.update_time, order_details.products, order_details.order_history`).
+		Select("orders.*, order_details.products, order_details.order_history").
 		Joins("JOIN order_details ON orders.order_detail_id = order_details.id").
 		Where("user_id = ?", params.UserID)
 
@@ -117,7 +116,7 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int64, 
 	err := r.Database.WithContext(ctx).Table("orders").Model(&models.Order{}).Where("id = ?", orderID).Updates(map[string]interface{}{
 		"status":      status,
 		"update_time": time.Now(),
-	}).Where("id = ?", orderID).Error
+	}).Error
 	if err != nil {
 		log.Logger.Error().Err(err).Int64("order_id", orderID).Msg("Failed to update order status")
 		return err
@@ -134,9 +133,9 @@ func (r *OrderRepository) GetOrderInfoByOrderID(ctx context.Context, orderID int
 	return &order, nil
 }
 
-func (r *OrderRepository) GetOrderDetailByOrderID(ctx context.Context, orderID int64) (*models.OrderDetail, error) {
+func (r *OrderRepository) GetOrderDetailByID(ctx context.Context, orderDetailID int64) (*models.OrderDetail, error) {
 	var orderDetail models.OrderDetail
-	err := r.Database.WithContext(ctx).Table("order_details").Where("id = ?", orderID).First(&orderDetail).Error
+	err := r.Database.WithContext(ctx).Table("order_details").Where("id = ?", orderDetailID).First(&orderDetail).Error
 	if err != nil {
 		return nil, err
 	}

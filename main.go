@@ -16,9 +16,17 @@ import (
 
 	"orderfc/kafka"
 
+	_ "orderfc/docs"
+
 	"github.com/gin-gonic/gin"
 )
 
+// @title           ORDERFC API
+// @version         1.0
+// @description     Order creation and history for Go Commerce.
+// @host            localhost:28082
+// @BasePath        /
+// @schemes         http
 func main() {
 	cfg := config.LoadConfig()
 
@@ -62,11 +70,11 @@ func main() {
 	routes.SetupRoutes(router, orderHandler)
 
 	kafkaPaymentSuccessConsumer := consumer.NewPaymentSuccessConsumer(cfg.Kafka.Brokers, "payment.success", orderService, kafkaProducer)
-	kafkaPaymentSuccessConsumer.StartPaymentSuccessConsumer(context.Background())
+	go kafkaPaymentSuccessConsumer.StartPaymentSuccessConsumer(context.Background())
 	log.Logger.Info().Msg("Kafka payment success consumer started")
 
 	kafkaPaymentFailedConsumer := consumer.NewPaymentFailedConsumer(cfg.Kafka.Brokers, "payment.failed", orderService, kafkaProducer)
-	kafkaPaymentFailedConsumer.StartPaymentFailedConsumer(context.Background())
+	go kafkaPaymentFailedConsumer.StartPaymentFailedConsumer(context.Background())
 	log.Logger.Info().Msg("Kafka payment failed consumer started")
 
 	log.Logger.Info().Msgf("Server is running on port %s", port)

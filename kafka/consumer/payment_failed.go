@@ -57,7 +57,7 @@ func (e *PaymentFailedConsumer) StartPaymentFailedConsumer(ctx context.Context) 
 			continue
 		}
 
-		orderDetail, err := e.OrderService.GetOrderDetailByOrderID(ctx, orderInfo.OrderDetailID)
+		orderDetail, err := e.OrderService.GetOrderDetailByID(ctx, orderInfo.OrderDetailID)
 		if err != nil {
 			log.Logger.Error().Err(err).Msg("Failed to get order detail")
 			continue
@@ -72,13 +72,13 @@ func (e *PaymentFailedConsumer) StartPaymentFailedConsumer(ctx context.Context) 
 
 		productItems := convertCheckoutItemToProductItem(products)
 
-		err = e.KafkaProducer.PublishProductStockUpdated(ctx, models.ProductStockUpdatedEvent{
+		err = e.KafkaProducer.PublishStockRollback(ctx, models.ProductStockUpdatedEvent{
 			OrderID:   event.OrderID,
 			Products:  productItems,
 			EventTime: time.Now(),
 		})
 		if err != nil {
-			log.Logger.Error().Err(err).Msg("Failed to publish product stock updated event")
+			log.Logger.Error().Err(err).Msg("Failed to publish stock rollback event")
 			continue
 		}
 	}

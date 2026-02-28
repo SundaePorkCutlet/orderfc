@@ -41,7 +41,7 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 
 	totalQty, totalAmount := u.calculateItemSummary(ctx, checkoutRequest.Items)
 
-	products, history := u.constructorderDetail(ctx, checkoutRequest.Items)
+	products, history := u.constructOrderDetail(ctx, checkoutRequest.Items)
 
 	orderDetail := &models.OrderDetail{
 		Products:     products,
@@ -133,7 +133,7 @@ func (u *OrderUsecase) calculateItemSummary(ctx context.Context, items []models.
 	return totalQty, totalAmount
 }
 
-func (u *OrderUsecase) constructorderDetail(ctx context.Context, items []models.CheckoutItem) (string, string) {
+func (u *OrderUsecase) constructOrderDetail(ctx context.Context, items []models.CheckoutItem) (string, string) {
 	productJson, err := json.Marshal(items)
 	if err != nil {
 		return "", ""
@@ -151,7 +151,7 @@ func (u *OrderUsecase) constructorderDetail(ctx context.Context, items []models.
 	return string(productJson), string(historyJson)
 }
 
-func (u *OrderUsecase) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryparam) ([]models.OrderHistoryResponse, error) {
+func (u *OrderUsecase) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryParam) ([]models.OrderHistoryResponse, error) {
 	results, err := u.OrderService.GetOrderHistoryByUserId(ctx, params)
 	if err != nil {
 		return nil, err
