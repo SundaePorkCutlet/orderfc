@@ -75,10 +75,26 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 		PaymentMethod:   checkoutRequest.PaymentMethod,
 		ShippingAddress: checkoutRequest.ShippingAddress,
 	}
-	err = u.KafkaProducer.PublishOrderCreated(ctx, orderCreatedEvent)
-	if err != nil {
-		return 0, err
+
+	go func() {
+		err = u.KafkaProducer.PublishOrderCreated(ctx, orderCreatedEvent)
+		if err != nil {
+			log.Logger.Error().Err(err).Msgf("Error publishing order created event: %s", err.Error())
+		}
+	}()
+
+	updateStockEvent := models.ProductStockUpdatedEvent{
+		OrderID:   orderId,
+		Products:  convertCheckoutItemToProductItem(checkoutRequest.Items),
+		EventTime: time.Now(),
 	}
+
+	go func() {
+		err = u.KafkaProducer.PublishProductStockUpdated(ctx, updateStockEvent)
+		if err != nil {
+			log.Logger.Error().Err(err).Msgf("Error publishing product stock updated event: %s", err.Error())
+		}
+	}()
 
 	return orderId, nil
 
@@ -149,4 +165,15 @@ func (u *OrderUsecase) GetProductInfo(ctx context.Context, productID int64) (mod
 		return models.Product{}, err
 	}
 	return product, nil
+}
+
+func convertCheckoutItemToProductItem(items []models.CheckoutItem) []models.ProductItem {
+	var productItems []models.ProductItem
+	for _, item := range items {
+		productItems = append(productItems, models.ProductItem{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+		})
+	}
+	return productItems
 }

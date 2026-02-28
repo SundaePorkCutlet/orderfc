@@ -1,4 +1,4 @@
-package kafka
+package consumer
 
 import (
 	"context"
@@ -6,45 +6,46 @@ import (
 	"orderfc/cmd/order/service"
 	"orderfc/infrastructure/constant"
 	"orderfc/infrastructure/log"
+	kafkaFC "orderfc/kafka"
 	"orderfc/models"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 )
 
-type PaymentSuccessEvent struct {
+type PaymentFailedConsumer struct {
 	Reader        *kafka.Reader
-	KafkaProducer *KafkaProducer
+	KafkaProducer *kafkaFC.KafkaProducer
 	OrderService  *service.OrderService
 }
 
-func NewPaymentSuccessEvent(brokers []string, topic string, orderService *service.OrderService, kafkaProducer *KafkaProducer) *PaymentSuccessEvent {
+func NewPaymentFailedConsumer(brokers []string, topic string, orderService *service.OrderService, kafkaProducer *kafkaFC.KafkaProducer) *PaymentFailedConsumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic:   topic,
 		GroupID: "orderfc",
 	})
-
-	return &PaymentSuccessEvent{
+	return &PaymentFailedConsumer{
 		Reader:        reader,
 		OrderService:  orderService,
 		KafkaProducer: kafkaProducer,
 	}
 }
 
-func (e *PaymentSuccessEvent) Start(ctx context.Context) {
+func (e *PaymentFailedConsumer) StartPaymentFailedConsumer(ctx context.Context) {
 	for {
 		msg, err := e.Reader.ReadMessage(ctx)
 		if err != nil {
 			log.Logger.Error().Err(err).Msg("Failed to read message from Kafka")
 			continue
 		}
-		var event models.PaymentSuccessEvent
+
+		var event models.PaymentUpdateStatusEvent
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
 			log.Logger.Error().Err(err).Msg("Failed to unmarshal message from Kafka")
 			continue
 		}
-		err = e.OrderService.UpdateOrderStatus(ctx, event.OrderID, constant.OrderStatusCompleted)
+		err = e.OrderService.UpdateOrderStatus(ctx, event.OrderID, constant.OrderStatusCancelled)
 		if err != nil {
 			log.Logger.Error().Err(err).Msg("Failed to update order status")
 			continue
@@ -68,26 +69,18 @@ func (e *PaymentSuccessEvent) Start(ctx context.Context) {
 			log.Logger.Error().Err(err).Msg("Failed to unmarshal products")
 			continue
 		}
-		publishProductStockUpdatedEvent := models.ProductStockUpdatedEvent{
+
+		productItems := convertCheckoutItemToProductItem(products)
+
+		err = e.KafkaProducer.PublishProductStockUpdated(ctx, models.ProductStockUpdatedEvent{
 			OrderID:   event.OrderID,
-			Products:  convertCheckoutItemToProductItem(products),
+			Products:  productItems,
 			EventTime: time.Now(),
-		}
-		err = e.KafkaProducer.PublishProductStockUpdated(ctx, publishProductStockUpdatedEvent)
+		})
 		if err != nil {
 			log.Logger.Error().Err(err).Msg("Failed to publish product stock updated event")
 			continue
 		}
 	}
-}
 
-func convertCheckoutItemToProductItem(products []models.CheckoutItem) []models.ProductItem {
-	var productItems []models.ProductItem
-	for _, product := range products {
-		productItems = append(productItems, models.ProductItem{
-			ProductID: product.ProductID,
-			Quantity:  product.Quantity,
-		})
-	}
-	return productItems
 }
