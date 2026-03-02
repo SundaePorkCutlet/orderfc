@@ -1,0 +1,11 @@
+# ORDERFC 메트릭 스크랩 설정 (중앙 Prometheus에서 참조/병합용)
+# docker-compose 내부: orderfc:8083
+scrape_configs:
+  - job_name: orderfc
+    static_configs:
+      - targets:
+          - orderfc:8083
+        labels:
+          service: orderfc
+    metrics_path: /metrics
+    scrape_interval: 15s
