@@ -10,16 +10,26 @@ type OrderDetail struct {
 
 type Order struct {
 	ID              int64       `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID          int64       `gorm:"type:bigint;not null" json:"user_id"`
+	UserID          int64       `gorm:"type:bigint;not null;index:idx_orders_user_status" json:"user_id"`
 	Amount          float64     `gorm:"type:numeric;not null" json:"amount"`
 	TotalQty        int         `gorm:"type:integer;not null" json:"total_qty"`
 	PaymentMethod   string      `gorm:"type:varchar(50)" json:"payment_method"`
 	ShippingAddress string      `gorm:"type:text" json:"shipping_address"`
-	Status          int         `gorm:"type:integer;not null" json:"status"`
+	Status          int         `gorm:"type:integer;not null;index:idx_orders_user_status;index:idx_orders_status_time" json:"status"`
 	OrderDetailID   int64       `gorm:"type:bigint" json:"order_detail_id"`
 	OrderDetail     OrderDetail `gorm:"foreignKey:OrderDetailID;constraint:OnDelete:CASCADE" json:"order_detail"`
-	CreateTime      time.Time   `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"create_time"`
+	CreateTime      time.Time   `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;index:idx_orders_status_time" json:"create_time"`
 	UpdateTime      time.Time   `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"update_time"`
+}
+
+type DailySalesReport struct {
+	SaleDate          string  `json:"sale_date" gorm:"column:sale_date"`
+	OrderCount        int     `json:"order_count" gorm:"column:order_count"`
+	TotalRevenue      float64 `json:"total_revenue" gorm:"column:total_revenue"`
+	AvgOrderValue     float64 `json:"avg_order_value" gorm:"column:avg_order_value"`
+	TotalItems        int     `json:"total_items" gorm:"column:total_items"`
+	CumulativeRevenue float64 `json:"cumulative_revenue" gorm:"column:cumulative_revenue"`
+	RevenueRank       int     `json:"revenue_rank" gorm:"column:revenue_rank"`
 }
 
 type OrderRequestLog struct {

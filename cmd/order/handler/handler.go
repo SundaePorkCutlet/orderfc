@@ -100,3 +100,25 @@ func (h *OrderHandler) GetOrderHistoryByUserId(c *gin.Context) {
 
 	c.JSON(http.StatusOK, results)
 }
+
+func (h *OrderHandler) GetSalesReport(c *gin.Context) {
+	daysStr := c.DefaultQuery("days", "30")
+	days, err := strconv.Atoi(daysStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid days parameter"})
+		return
+	}
+
+	results, err := h.OrderUsecase.GetDailySalesReport(c.Request.Context(), days)
+	if err != nil {
+		log.Logger.Error().Err(err).Msg("Error getting sales report")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"report": results,
+		"days":   days,
+		"note":   "Uses CTE + Window Functions (cumulative_revenue, revenue_rank)",
+	})
+}

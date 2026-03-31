@@ -85,3 +85,7 @@ func (s *OrderService) GetOrderDetailByID(ctx context.Context, orderDetailID int
 	}
 	return orderDetail, nil
 }
+
+func (s *OrderService) GetDailySalesReport(ctx context.Context, days int) ([]models.DailySalesReport, error) {
+	return s.OrderRepo.GetDailySalesReport(ctx, days)
+}

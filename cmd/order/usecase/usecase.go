@@ -167,6 +167,13 @@ func (u *OrderUsecase) GetProductInfo(ctx context.Context, productID int64) (mod
 	return product, nil
 }
 
+func (u *OrderUsecase) GetDailySalesReport(ctx context.Context, days int) ([]models.DailySalesReport, error) {
+	if days <= 0 {
+		days = 30
+	}
+	return u.OrderService.GetDailySalesReport(ctx, days)
+}
+
 func convertCheckoutItemToProductItem(items []models.CheckoutItem) []models.ProductItem {
 	var productItems []models.ProductItem
 	for _, item := range items {

@@ -141,3 +141,32 @@ func (r *OrderRepository) GetOrderDetailByID(ctx context.Context, orderDetailID 
 	}
 	return &orderDetail, nil
 }
+
+func (r *OrderRepository) GetDailySalesReport(ctx context.Context, days int) ([]models.DailySalesReport, error) {
+	var results []models.DailySalesReport
+	query := `
+		WITH daily_sales AS (
+			SELECT
+				DATE(create_time) as sale_date,
+				COUNT(*) as order_count,
+				COALESCE(SUM(amount), 0) as total_revenue,
+				COALESCE(AVG(amount), 0) as avg_order_value,
+				COALESCE(SUM(total_qty), 0) as total_items
+			FROM orders
+			WHERE create_time >= NOW() - INTERVAL '1 day' * ?
+			GROUP BY DATE(create_time)
+		)
+		SELECT
+			TO_CHAR(sale_date, 'YYYY-MM-DD') as sale_date,
+			order_count,
+			ROUND(total_revenue::numeric, 2) as total_revenue,
+			ROUND(avg_order_value::numeric, 2) as avg_order_value,
+			total_items,
+			ROUND(SUM(total_revenue) OVER (ORDER BY sale_date)::numeric, 2) as cumulative_revenue,
+			ROW_NUMBER() OVER (ORDER BY total_revenue DESC) as revenue_rank
+		FROM daily_sales
+		ORDER BY sale_date DESC
+	`
+	err := r.Database.WithContext(ctx).Raw(query, days).Scan(&results).Error
+	return results, err
+}
