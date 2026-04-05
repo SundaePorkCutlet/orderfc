@@ -15,10 +15,13 @@ type Product struct {
 	CategoryID  int     `json:"category_id"`
 }
 
+// ProductStockUpdatedEvent — stock.updated / stock.rollback 발행에 공통 필드 (스키마 v1).
 type ProductStockUpdatedEvent struct {
-	OrderID   int64         `json:"order_id"`
-	Products  []ProductItem `json:"products"`
-	EventTime time.Time     `json:"event_time"`
+	SchemaVersion int           `json:"schema_version"` // 1 = 현재 필드 집합
+	OrderID       int64         `json:"order_id"`
+	UserID        int64         `json:"user_id"` // 파티션 키·순서 보장용 (동일 유저 주문 동일 파티션)
+	Products      []ProductItem `json:"products"`
+	EventTime     time.Time     `json:"event_time"`
 }
 
 type ProductItem struct {

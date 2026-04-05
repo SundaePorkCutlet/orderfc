@@ -84,9 +84,11 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 	}()
 
 	updateStockEvent := models.ProductStockUpdatedEvent{
-		OrderID:   orderId,
-		Products:  convertCheckoutItemToProductItem(checkoutRequest.Items),
-		EventTime: time.Now(),
+		SchemaVersion: 1,
+		OrderID:       orderId,
+		UserID:        checkoutRequest.UserID,
+		Products:      convertCheckoutItemToProductItem(checkoutRequest.Items),
+		EventTime:     time.Now(),
 	}
 
 	go func() {

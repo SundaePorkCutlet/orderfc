@@ -73,9 +73,11 @@ func (e *PaymentFailedConsumer) StartPaymentFailedConsumer(ctx context.Context) 
 		productItems := convertCheckoutItemToProductItem(products)
 
 		err = e.KafkaProducer.PublishStockRollback(ctx, models.ProductStockUpdatedEvent{
-			OrderID:   event.OrderID,
-			Products:  productItems,
-			EventTime: time.Now(),
+			SchemaVersion: 1,
+			OrderID:       event.OrderID,
+			UserID:        orderInfo.UserID,
+			Products:      productItems,
+			EventTime:     time.Now(),
 		})
 		if err != nil {
 			log.Logger.Error().Err(err).Msg("Failed to publish stock rollback event")

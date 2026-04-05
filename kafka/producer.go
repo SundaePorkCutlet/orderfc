@@ -16,9 +16,16 @@ type KafkaProducer struct {
 func NewKafkaProducer(brokers []string) *KafkaProducer {
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP(brokers...),
-		Balancer: &kafka.LeastBytes{},
+		Balancer: &kafka.Hash{}, // Message.Key 기준 파티션 (user_id 기반 순서 보장)
 	}
 	return &KafkaProducer{writer: writer}
+}
+
+func stockEventPartitionKey(userID, orderID int64) []byte {
+	if userID > 0 {
+		return []byte(fmt.Sprintf("user-%d", userID))
+	}
+	return []byte(fmt.Sprintf("order-%d", orderID))
 }
 
 func (p *KafkaProducer) Close() error {
@@ -44,7 +51,7 @@ func (p *KafkaProducer) PublishProductStockUpdated(ctx context.Context, event mo
 		return err
 	}
 	msg := kafka.Message{
-		Key:   []byte(fmt.Sprintf("order-%d", event.OrderID)),
+		Key:   stockEventPartitionKey(event.UserID, event.OrderID),
 		Value: json,
 		Topic: "stock.updated",
 	}
@@ -57,7 +64,7 @@ func (p *KafkaProducer) PublishStockRollback(ctx context.Context, event models.P
 		return err
 	}
 	msg := kafka.Message{
-		Key:   []byte(fmt.Sprintf("order-%d", event.OrderID)),
+		Key:   stockEventPartitionKey(event.UserID, event.OrderID),
 		Value: json,
 		Topic: "stock.rollback",
 	}
