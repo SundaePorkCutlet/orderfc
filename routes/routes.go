@@ -33,6 +33,16 @@ func SetupRoutes(router *gin.Engine, orderHandler *handler.OrderHandler) {
 		c.JSON(http.StatusOK, resource.DBMonitor.GetDebugInfo())
 	})
 
+	router.GET("/debug/kafka", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"service":           "orderfc",
+			"messages_produced": 0,
+			"messages_consumed": 0,
+			"dlq_count":         0,
+			"consumer_stats":    gin.H{},
+		})
+	})
+
 	// private API (인증 필요)
 	private := router.Group("/api")
 	private.Use(middleware.AuthMiddleware(config.GetJwtSecret()))
