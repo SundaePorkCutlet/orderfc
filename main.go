@@ -10,6 +10,7 @@ import (
 	"orderfc/config"
 	"orderfc/infrastructure/log"
 	"orderfc/kafka/consumer"
+	"orderfc/middleware"
 	"orderfc/models"
 	"orderfc/routes"
 	"orderfc/tracing"
@@ -60,6 +61,7 @@ func main() {
 
 	port := cfg.App.Port
 	router := gin.Default()
+	router.Use(middleware.PrometheusRED("orderfc"))
 
 	// 트레이싱 미들웨어 추가
 	if cfg.Tracing.Enabled {
