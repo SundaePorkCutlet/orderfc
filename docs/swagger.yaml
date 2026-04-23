@@ -1,0 +1,169 @@
+basePath: /
+definitions:
+  models.CheckoutItem:
+    properties:
+      price:
+        type: number
+      product_id:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  models.CheckoutRequest:
+    properties:
+      idempotency_token:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.CheckoutItem'
+        type: array
+      payment_method:
+        type: string
+      shipping_address:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  models.Order:
+    properties:
+      amount:
+        type: number
+      create_time:
+        type: string
+      id:
+        type: integer
+      order_detail:
+        $ref: '#/definitions/models.OrderDetail'
+      order_detail_id:
+        type: integer
+      payment_method:
+        type: string
+      shipping_address:
+        type: string
+      status:
+        type: integer
+      total_qty:
+        type: integer
+      update_time:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  models.OrderDetail:
+    properties:
+      id:
+        type: integer
+      order_history:
+        type: string
+      products:
+        type: string
+    type: object
+host: localhost:28082
+info:
+  contact: {}
+  description: Order creation and history for Go Commerce.
+  title: ORDERFC API
+  version: "1.0"
+paths:
+  /api/v1/orders:
+    post:
+      consumes:
+      - application/json
+      description: 인증된 사용자의 주문을 생성하고 order_id를 반환합니다.
+      parameters:
+      - description: 주문 요청
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CheckoutRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 주문 생성
+      tags:
+      - ORDER
+  /api/v1/orders/history:
+    get:
+      description: 인증된 사용자의 주문 내역을 조회합니다.
+      parameters:
+      - description: 주문 상태
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Order'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 주문 내역 조회
+      tags:
+      - ORDER
+  /api/v1/orders/sales-report:
+    get:
+      description: 일 단위 매출 리포트를 조회합니다.
+      parameters:
+      - default: 30
+        description: 조회 기간(일)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 매출 리포트 조회
+      tags:
+      - ORDER
+schemes:
+- http
+swagger: "2.0"

@@ -9,6 +9,8 @@ import (
 	"orderfc/models"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"gorm.io/gorm"
 )
 
@@ -34,6 +36,7 @@ func (r *OrderRepository) GetProductInfo(ctx context.Context, productID int64) (
 	if err != nil {
 		return models.Product{}, err
 	}
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return models.Product{}, err
@@ -52,4 +55,3 @@ func (r *OrderRepository) GetProductInfo(ctx context.Context, productID int64) (
 
 	return product, nil
 }
-

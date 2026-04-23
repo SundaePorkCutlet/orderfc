@@ -13,7 +13,7 @@ func RequestLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestId := uuid.New().String()
 
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 
 		ctx := context.WithValue(timeoutCtx, "request_id", requestId)
