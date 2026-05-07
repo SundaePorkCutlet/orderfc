@@ -24,6 +24,14 @@ func (s *OrderService) SaveIdempotencyToken(ctx context.Context, idempotencyToke
 	return s.OrderRepo.SaveIdempotencyToken(ctx, idempotencyToken)
 }
 
+func (s *OrderService) ReserveIdempotencyToken(ctx context.Context, idempotencyToken, requestHash string) (*models.OrderRequestLog, bool, error) {
+	return s.OrderRepo.ReserveIdempotencyToken(ctx, idempotencyToken, requestHash)
+}
+
+func (s *OrderService) MarkIdempotencyTokenFailed(ctx context.Context, idempotencyToken string, processErr error) error {
+	return s.OrderRepo.MarkIdempotencyTokenFailed(ctx, idempotencyToken, processErr)
+}
+
 func (s *OrderService) SaveOrderAndOrderDetail(ctx context.Context, order *models.Order, orderDetail *models.OrderDetail) (int64, error) {
 	return s.SaveOrderAndOrderDetailWithOutbox(ctx, order, orderDetail, nil)
 }
@@ -53,6 +61,48 @@ func (s *OrderService) SaveOrderAndOrderDetailWithOutbox(
 				return err
 			}
 			if err := s.OrderRepo.InsertOrderOutboxEventsTx(ctx, tx, events); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return orderId, nil
+}
+
+func (s *OrderService) SaveOrderAndOrderDetailWithOutboxAndIdempotency(
+	ctx context.Context,
+	order *models.Order,
+	orderDetail *models.OrderDetail,
+	idempotencyToken string,
+	buildEvents func(orderID int64) ([]models.OrderOutboxEvent, error),
+) (int64, error) {
+	var orderId int64
+	err := s.OrderRepo.WithTransaction(ctx, func(tx *gorm.DB) error {
+		if err := s.OrderRepo.InsertOrderDetailTx(ctx, tx, orderDetail); err != nil {
+			return err
+		}
+
+		order.OrderDetailID = orderDetail.ID
+		if err := s.OrderRepo.InsertOrderTx(ctx, tx, order); err != nil {
+			return err
+		}
+		orderId = order.ID
+
+		if buildEvents != nil {
+			events, err := buildEvents(orderId)
+			if err != nil {
+				return err
+			}
+			if err := s.OrderRepo.InsertOrderOutboxEventsTx(ctx, tx, events); err != nil {
+				return err
+			}
+		}
+
+		if idempotencyToken != "" {
+			if err := s.OrderRepo.MarkIdempotencyTokenSucceededTx(ctx, tx, idempotencyToken, orderId); err != nil {
 				return err
 			}
 		}

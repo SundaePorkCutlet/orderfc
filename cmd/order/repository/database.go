@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func (r *OrderRepository) WithTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error {
@@ -48,6 +49,60 @@ func (r *OrderRepository) InsertOrderOutboxEventsTx(ctx context.Context, tx *gor
 		return nil
 	}
 	return tx.WithContext(ctx).Table("order_outbox_events").Create(&events).Error
+}
+
+func (r *OrderRepository) ReserveIdempotencyToken(ctx context.Context, idempotencyToken, requestHash string) (*models.OrderRequestLog, bool, error) {
+	log := models.OrderRequestLog{
+		IdempotencyToken: idempotencyToken,
+		RequestHash:      requestHash,
+		Status:           models.IdempotencyStatusProcessing,
+		CreateTime:       time.Now(),
+		UpdateTime:       time.Now(),
+	}
+
+	result := r.Database.WithContext(ctx).
+		Table("order_request_logs").
+		Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&log)
+	if result.Error != nil {
+		return nil, false, result.Error
+	}
+	if result.RowsAffected == 1 {
+		return &log, true, nil
+	}
+
+	var existing models.OrderRequestLog
+	err := r.Database.WithContext(ctx).
+		Table("order_request_logs").
+		Where("idempotency_token = ?", idempotencyToken).
+		First(&existing).Error
+	if err != nil {
+		return nil, false, err
+	}
+	return &existing, false, nil
+}
+
+func (r *OrderRepository) MarkIdempotencyTokenSucceededTx(ctx context.Context, tx *gorm.DB, idempotencyToken string, orderID int64) error {
+	return tx.WithContext(ctx).
+		Table("order_request_logs").
+		Where("idempotency_token = ?", idempotencyToken).
+		Updates(map[string]interface{}{
+			"status":      models.IdempotencyStatusSucceeded,
+			"order_id":    orderID,
+			"last_error":  "",
+			"update_time": time.Now(),
+		}).Error
+}
+
+func (r *OrderRepository) MarkIdempotencyTokenFailed(ctx context.Context, idempotencyToken string, processErr error) error {
+	return r.Database.WithContext(ctx).
+		Table("order_request_logs").
+		Where("idempotency_token = ?", idempotencyToken).
+		Updates(map[string]interface{}{
+			"status":      models.IdempotencyStatusFailed,
+			"last_error":  processErr.Error(),
+			"update_time": time.Now(),
+		}).Error
 }
 
 func (r *OrderRepository) CheckIdempotencyToken(ctx context.Context, idempotencyToken string) (bool, error) {

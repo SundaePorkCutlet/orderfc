@@ -35,8 +35,19 @@ type DailySalesReport struct {
 type OrderRequestLog struct {
 	ID               int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	IdempotencyToken string    `gorm:"type:text;unique;not null" json:"idempotency_token"`
+	RequestHash      string    `gorm:"type:varchar(64);not null;default:''" json:"request_hash"`
+	Status           string    `gorm:"type:varchar(20);not null;default:'PROCESSING'" json:"status"`
+	OrderID          int64     `gorm:"type:bigint;index" json:"order_id"`
+	LastError        string    `gorm:"type:text" json:"last_error"`
 	CreateTime       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"create_time"`
+	UpdateTime       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"update_time"`
 }
+
+const (
+	IdempotencyStatusProcessing = "PROCESSING"
+	IdempotencyStatusSucceeded  = "SUCCEEDED"
+	IdempotencyStatusFailed     = "FAILED"
+)
 
 const (
 	OrderOutboxStatusPending   = "pending"

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"orderfc/cmd/order/usecase"
 	"orderfc/infrastructure/log"
@@ -67,6 +68,13 @@ func (h *OrderHandler) CheckOutOrder(c *gin.Context) {
 
 	orderId, err := h.OrderUsecase.CheckOutOrder(c.Request.Context(), &checkoutRequest)
 	if err != nil {
+		if errors.Is(err, usecase.ErrIdempotencyInProgress) ||
+			errors.Is(err, usecase.ErrIdempotencyKeyReused) ||
+			errors.Is(err, usecase.ErrIdempotencyPreviousFail) {
+			log.Logger.Info().Err(err).Msg("Idempotency conflict while checking out order")
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		log.Logger.Info().Err(err).Msg("Error checking out order")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

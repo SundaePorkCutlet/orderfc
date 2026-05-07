@@ -2,15 +2,22 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"orderfc/cmd/order/service"
 	"orderfc/infrastructure/constant"
-	"orderfc/infrastructure/log"
 	"orderfc/kafka"
 	"orderfc/models"
 	"time"
+)
+
+var (
+	ErrIdempotencyInProgress   = errors.New("idempotency request is still processing")
+	ErrIdempotencyKeyReused    = errors.New("idempotency token reused with different request")
+	ErrIdempotencyPreviousFail = errors.New("idempotency request previously failed")
 )
 
 type OrderUsecase struct {
@@ -23,20 +30,38 @@ func NewOrderUsecase(orderService service.OrderService, kafkaProducer *kafka.Kaf
 }
 
 func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *models.CheckoutRequest) (int64, error) {
-
-	if checkoutRequest.IdempotencyToken != "" {
-		isExist, err := u.OrderService.CheckIdempotencyToken(ctx, checkoutRequest.IdempotencyToken)
-		if err != nil {
-			return 0, err
-		}
-		if isExist {
-			return 0, errors.New("idempotency token already exists")
-		}
-	}
-
 	err := u.validateProducts(ctx, checkoutRequest.Items)
 	if err != nil {
 		return 0, err
+	}
+
+	if checkoutRequest.IdempotencyToken != "" {
+		requestHash, err := hashCheckoutRequest(checkoutRequest)
+		if err != nil {
+			return 0, err
+		}
+		idem, reserved, err := u.OrderService.ReserveIdempotencyToken(ctx, checkoutRequest.IdempotencyToken, requestHash)
+		if err != nil {
+			return 0, err
+		}
+		if !reserved {
+			if idem.RequestHash != requestHash {
+				return 0, ErrIdempotencyKeyReused
+			}
+			switch idem.Status {
+			case models.IdempotencyStatusSucceeded:
+				if idem.OrderID > 0 {
+					return idem.OrderID, nil
+				}
+				return 0, ErrIdempotencyInProgress
+			case models.IdempotencyStatusProcessing:
+				return 0, ErrIdempotencyInProgress
+			case models.IdempotencyStatusFailed:
+				return 0, ErrIdempotencyPreviousFail
+			default:
+				return 0, ErrIdempotencyInProgress
+			}
+		}
 	}
 
 	totalQty, totalAmount := u.calculateItemSummary(ctx, checkoutRequest.Items)
@@ -57,7 +82,7 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 		Status:          constant.OrderStatusCreated,
 	}
 
-	orderId, err := u.OrderService.SaveOrderAndOrderDetailWithOutbox(ctx, order, orderDetail, func(orderID int64) ([]models.OrderOutboxEvent, error) {
+	orderId, err := u.OrderService.SaveOrderAndOrderDetailWithOutboxAndIdempotency(ctx, order, orderDetail, checkoutRequest.IdempotencyToken, func(orderID int64) ([]models.OrderOutboxEvent, error) {
 		orderCreatedEvent := models.OrderCreatedEvent{
 			OrderID:         orderID,
 			UserID:          checkoutRequest.UserID,
@@ -83,14 +108,10 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 		}, nil
 	})
 	if err != nil {
-		return 0, err
-	}
-
-	if checkoutRequest.IdempotencyToken != "" {
-		err = u.OrderService.SaveIdempotencyToken(ctx, checkoutRequest.IdempotencyToken)
-		if err != nil {
-			log.Logger.Info().Err(err).Msgf("Error saving idempotency token: %s", err.Error())
+		if checkoutRequest.IdempotencyToken != "" {
+			_ = u.OrderService.MarkIdempotencyTokenFailed(ctx, checkoutRequest.IdempotencyToken, err)
 		}
+		return 0, err
 	}
 	return orderId, nil
 
@@ -179,4 +200,24 @@ func convertCheckoutItemToProductItem(items []models.CheckoutItem) []models.Prod
 		})
 	}
 	return productItems
+}
+
+func hashCheckoutRequest(req *models.CheckoutRequest) (string, error) {
+	payload := struct {
+		UserID          int64                 `json:"user_id"`
+		Items           []models.CheckoutItem `json:"items"`
+		PaymentMethod   string                `json:"payment_method"`
+		ShippingAddress string                `json:"shipping_address"`
+	}{
+		UserID:          req.UserID,
+		Items:           req.Items,
+		PaymentMethod:   req.PaymentMethod,
+		ShippingAddress: req.ShippingAddress,
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:]), nil
 }
