@@ -58,6 +58,15 @@ func (p *KafkaProducer) PublishProductStockUpdated(ctx context.Context, event mo
 	return p.writer.WriteMessages(ctx, msg)
 }
 
+func (p *KafkaProducer) PublishRaw(ctx context.Context, topic, key string, payload []byte) error {
+	msg := kafka.Message{
+		Key:   []byte(key),
+		Value: payload,
+		Topic: topic,
+	}
+	return p.writer.WriteMessages(ctx, msg)
+}
+
 func (p *KafkaProducer) PublishStockRollback(ctx context.Context, event models.ProductStockUpdatedEvent) error {
 	json, err := json.Marshal(event)
 	if err != nil {

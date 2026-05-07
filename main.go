@@ -44,11 +44,11 @@ func main() {
 	redis := resource.InitRedis(cfg.Redis)
 	db := resource.InitDB(cfg.Database)
 
-	// AutoMigrate: order_detail, orders, order_request_log 테이블 자동 생성/업데이트
-	if err := db.AutoMigrate(&models.OrderDetail{}, &models.Order{}, &models.OrderRequestLog{}); err != nil {
+	// AutoMigrate: order_detail, orders, order_request_log, order_outbox_events 테이블 자동 생성/업데이트
+	if err := db.AutoMigrate(&models.OrderDetail{}, &models.Order{}, &models.OrderRequestLog{}, &models.OrderOutboxEvent{}); err != nil {
 		log.Logger.Fatal().Err(err).Msg("Failed to migrate database")
 	}
-	log.Logger.Info().Msg("Database migration completed - order_detail, orders, and order_request_log tables created")
+	log.Logger.Info().Msg("Database migration completed - order_detail, orders, order_request_log, and order_outbox_events tables created")
 
 	kafkaProducer := kafka.NewKafkaProducer(cfg.Kafka.Brokers)
 
@@ -58,6 +58,10 @@ func main() {
 	orderService := service.NewOrderService(*orderRepository)
 	orderUsecase := usecase.NewOrderUsecase(*orderService, kafkaProducer)
 	orderHandler := handler.NewOrderHandler(*orderUsecase)
+
+	orderOutboxPublisher := kafka.NewOrderOutboxPublisher(orderRepository, kafkaProducer)
+	go orderOutboxPublisher.Start(context.Background())
+	log.Logger.Info().Msg("Order outbox publisher started")
 
 	port := cfg.App.Port
 	router := gin.Default()
@@ -78,6 +82,10 @@ func main() {
 	kafkaPaymentFailedConsumer := consumer.NewPaymentFailedConsumer(cfg.Kafka.Brokers, "payment.failed", orderService, kafkaProducer)
 	go kafkaPaymentFailedConsumer.StartPaymentFailedConsumer(context.Background())
 	log.Logger.Info().Msg("Kafka payment failed consumer started")
+
+	kafkaStockRejectedConsumer := consumer.NewStockRejectedConsumer(cfg.Kafka.Brokers, "stock.rejected", orderService)
+	go kafkaStockRejectedConsumer.Start(context.Background())
+	log.Logger.Info().Msg("Kafka stock rejected consumer started")
 
 	log.Logger.Info().Msgf("Server is running on port %s", port)
 	router.Run(":" + port)

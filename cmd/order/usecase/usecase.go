@@ -57,7 +57,31 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 		Status:          constant.OrderStatusCreated,
 	}
 
-	orderId, err := u.OrderService.SaveOrderAndOrderDetail(ctx, order, orderDetail)
+	orderId, err := u.OrderService.SaveOrderAndOrderDetailWithOutbox(ctx, order, orderDetail, func(orderID int64) ([]models.OrderOutboxEvent, error) {
+		orderCreatedEvent := models.OrderCreatedEvent{
+			OrderID:         orderID,
+			UserID:          checkoutRequest.UserID,
+			TotalAmount:     totalAmount,
+			PaymentMethod:   checkoutRequest.PaymentMethod,
+			ShippingAddress: checkoutRequest.ShippingAddress,
+			Products:        convertCheckoutItemToProductItem(checkoutRequest.Items),
+		}
+		orderCreatedPayload, err := json.Marshal(orderCreatedEvent)
+		if err != nil {
+			return nil, err
+		}
+
+		eventKey := fmt.Sprintf("order-%d", orderID)
+
+		return []models.OrderOutboxEvent{
+			{
+				Topic:    "order.created",
+				EventKey: eventKey,
+				Payload:  string(orderCreatedPayload),
+				Status:   models.OrderOutboxStatusPending,
+			},
+		}, nil
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -68,36 +92,6 @@ func (u *OrderUsecase) CheckOutOrder(ctx context.Context, checkoutRequest *model
 			log.Logger.Info().Err(err).Msgf("Error saving idempotency token: %s", err.Error())
 		}
 	}
-	orderCreatedEvent := models.OrderCreatedEvent{
-		OrderID:         orderId,
-		UserID:          checkoutRequest.UserID,
-		TotalAmount:     totalAmount,
-		PaymentMethod:   checkoutRequest.PaymentMethod,
-		ShippingAddress: checkoutRequest.ShippingAddress,
-	}
-
-	go func() {
-		err = u.KafkaProducer.PublishOrderCreated(ctx, orderCreatedEvent)
-		if err != nil {
-			log.Logger.Error().Err(err).Msgf("Error publishing order created event: %s", err.Error())
-		}
-	}()
-
-	updateStockEvent := models.ProductStockUpdatedEvent{
-		SchemaVersion: 1,
-		OrderID:       orderId,
-		UserID:        checkoutRequest.UserID,
-		Products:      convertCheckoutItemToProductItem(checkoutRequest.Items),
-		EventTime:     time.Now(),
-	}
-
-	go func() {
-		err = u.KafkaProducer.PublishProductStockUpdated(ctx, updateStockEvent)
-		if err != nil {
-			log.Logger.Error().Err(err).Msgf("Error publishing product stock updated event: %s", err.Error())
-		}
-	}()
-
 	return orderId, nil
 
 }

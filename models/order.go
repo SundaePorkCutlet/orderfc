@@ -38,6 +38,24 @@ type OrderRequestLog struct {
 	CreateTime       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"create_time"`
 }
 
+const (
+	OrderOutboxStatusPending   = "pending"
+	OrderOutboxStatusPublished = "published"
+	OrderOutboxStatusFailed    = "failed"
+)
+
+type OrderOutboxEvent struct {
+	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	Topic      string    `gorm:"type:varchar(100);not null;index:idx_order_outbox_status" json:"topic"`
+	EventKey   string    `gorm:"type:varchar(100);not null" json:"event_key"`
+	Payload    string    `gorm:"type:text;not null" json:"payload"`
+	Status     string    `gorm:"type:varchar(20);not null;default:'pending';index:idx_order_outbox_status" json:"status"`
+	RetryCount int       `gorm:"type:integer;not null;default:0" json:"retry_count"`
+	LastError  string    `gorm:"type:text" json:"last_error"`
+	CreateTime time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"create_time"`
+	UpdateTime time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"update_time"`
+}
+
 type CheckoutItem struct {
 	ProductID int64   `json:"product_id"`
 	Quantity  int     `json:"quantity"`
@@ -85,9 +103,10 @@ type OrderHistoryResult struct {
 }
 
 type OrderCreatedEvent struct {
-	OrderID         int64   `json:"order_id"`
-	UserID          int64   `json:"user_id"`
-	TotalAmount     float64 `json:"total_amount"`
-	PaymentMethod   string  `json:"payment_method"`
-	ShippingAddress string  `json:"shipping_address"`
+	OrderID         int64         `json:"order_id"`
+	UserID          int64         `json:"user_id"`
+	TotalAmount     float64       `json:"total_amount"`
+	PaymentMethod   string        `json:"payment_method"`
+	ShippingAddress string        `json:"shipping_address"`
+	Products        []ProductItem `json:"products"`
 }

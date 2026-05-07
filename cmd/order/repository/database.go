@@ -43,6 +43,13 @@ func (r *OrderRepository) InsertOrderDetailTx(ctx context.Context, tx *gorm.DB, 
 	return err
 }
 
+func (r *OrderRepository) InsertOrderOutboxEventsTx(ctx context.Context, tx *gorm.DB, events []models.OrderOutboxEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+	return tx.WithContext(ctx).Table("order_outbox_events").Create(&events).Error
+}
+
 func (r *OrderRepository) CheckIdempotencyToken(ctx context.Context, idempotencyToken string) (bool, error) {
 	var log models.OrderRequestLog
 	err := r.Database.WithContext(ctx).Table("order_request_logs").First(&log, "idempotency_token = ?", idempotencyToken).Error
@@ -67,6 +74,40 @@ func (r *OrderRepository) SaveIdempotencyToken(ctx context.Context, idempotencyT
 	}
 	return nil
 
+}
+
+func (r *OrderRepository) GetPendingOutboxEvents(ctx context.Context, limit int) ([]models.OrderOutboxEvent, error) {
+	var events []models.OrderOutboxEvent
+	err := r.Database.WithContext(ctx).
+		Table("order_outbox_events").
+		Where("status IN ?", []string{models.OrderOutboxStatusPending, models.OrderOutboxStatusFailed}).
+		Order("id ASC").
+		Limit(limit).
+		Find(&events).Error
+	return events, err
+}
+
+func (r *OrderRepository) MarkOutboxEventPublished(ctx context.Context, eventID int64) error {
+	return r.Database.WithContext(ctx).
+		Table("order_outbox_events").
+		Where("id = ?", eventID).
+		Updates(map[string]interface{}{
+			"status":      models.OrderOutboxStatusPublished,
+			"last_error":  "",
+			"update_time": time.Now(),
+		}).Error
+}
+
+func (r *OrderRepository) MarkOutboxEventFailed(ctx context.Context, eventID int64, publishErr error) error {
+	return r.Database.WithContext(ctx).
+		Table("order_outbox_events").
+		Where("id = ?", eventID).
+		Updates(map[string]interface{}{
+			"status":      models.OrderOutboxStatusFailed,
+			"retry_count": gorm.Expr("retry_count + 1"),
+			"last_error":  publishErr.Error(),
+			"update_time": time.Now(),
+		}).Error
 }
 
 func (r *OrderRepository) GetOrderHistoryByUserId(ctx context.Context, params models.OrderHistoryParam) ([]models.OrderHistoryResponse, error) {

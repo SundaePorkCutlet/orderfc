@@ -25,6 +25,15 @@ func (s *OrderService) SaveIdempotencyToken(ctx context.Context, idempotencyToke
 }
 
 func (s *OrderService) SaveOrderAndOrderDetail(ctx context.Context, order *models.Order, orderDetail *models.OrderDetail) (int64, error) {
+	return s.SaveOrderAndOrderDetailWithOutbox(ctx, order, orderDetail, nil)
+}
+
+func (s *OrderService) SaveOrderAndOrderDetailWithOutbox(
+	ctx context.Context,
+	order *models.Order,
+	orderDetail *models.OrderDetail,
+	buildEvents func(orderID int64) ([]models.OrderOutboxEvent, error),
+) (int64, error) {
 	var orderId int64
 	err := s.OrderRepo.WithTransaction(ctx, func(tx *gorm.DB) error {
 		err := s.OrderRepo.InsertOrderDetailTx(ctx, tx, orderDetail)
@@ -38,6 +47,15 @@ func (s *OrderService) SaveOrderAndOrderDetail(ctx context.Context, order *model
 			return err
 		}
 		orderId = order.ID
+		if buildEvents != nil {
+			events, err := buildEvents(orderId)
+			if err != nil {
+				return err
+			}
+			if err := s.OrderRepo.InsertOrderOutboxEventsTx(ctx, tx, events); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {

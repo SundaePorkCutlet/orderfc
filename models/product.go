@@ -28,3 +28,13 @@ type ProductItem struct {
 	ProductID int64 `json:"product_id"`
 	Quantity  int   `json:"quantity"`
 }
+
+type StockReservationEvent struct {
+	SchemaVersion int           `json:"schema_version"`
+	OrderID       int64         `json:"order_id"`
+	UserID        int64         `json:"user_id"`
+	TotalAmount   float64       `json:"total_amount"`
+	Products      []ProductItem `json:"products"`
+	Reason        string        `json:"reason,omitempty"`
+	EventTime     time.Time     `json:"event_time"`
+}
