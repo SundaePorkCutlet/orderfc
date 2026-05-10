@@ -157,7 +157,7 @@ func (u *OrderUsecase) constructOrderDetail(ctx context.Context, items []models.
 	}
 	history := []map[string]interface{}{
 		{
-			"status": "created",
+			"status": constant.OrderStatusCreated,
 			"time":   time.Now(),
 		},
 	}
