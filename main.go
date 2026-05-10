@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// 라우트 설정
-	routes.SetupRoutes(router, orderHandler)
+	routes.SetupRoutes(router, orderHandler, db, redis)
 
 	kafkaPaymentSuccessConsumer := consumer.NewPaymentSuccessConsumer(cfg.Kafka.Brokers, "payment.success", orderService, kafkaProducer)
 	go kafkaPaymentSuccessConsumer.StartPaymentSuccessConsumer(context.Background())

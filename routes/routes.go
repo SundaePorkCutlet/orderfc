@@ -1,19 +1,23 @@
 package routes
 
 import (
+	"context"
 	"net/http"
 	"orderfc/cmd/order/handler"
 	"orderfc/cmd/order/resource"
 	"orderfc/config"
 	"orderfc/middleware"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
 )
 
-func SetupRoutes(router *gin.Engine, orderHandler *handler.OrderHandler) {
+func SetupRoutes(router *gin.Engine, orderHandler *handler.OrderHandler, db *gorm.DB, redis *redis.Client) {
 	router.Use(middleware.RequestLogger())
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -23,6 +27,39 @@ func SetupRoutes(router *gin.Engine, orderHandler *handler.OrderHandler) {
 			"status":  "healthy",
 			"service": "orderfc",
 		})
+	})
+	router.GET("/ready", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 500*time.Millisecond)
+		defer cancel()
+
+		status := gin.H{
+			"status":  "ready",
+			"service": "orderfc",
+			"checks":  gin.H{},
+		}
+		checks := status["checks"].(gin.H)
+
+		sqlDB, err := db.DB()
+		if err != nil {
+			checks["database"] = "unavailable"
+			c.JSON(http.StatusServiceUnavailable, status)
+			return
+		}
+		if err := sqlDB.PingContext(ctx); err != nil {
+			checks["database"] = "unavailable"
+			c.JSON(http.StatusServiceUnavailable, status)
+			return
+		}
+		checks["database"] = "ok"
+
+		if err := redis.Ping(ctx).Err(); err != nil {
+			checks["redis"] = "unavailable"
+			c.JSON(http.StatusServiceUnavailable, status)
+			return
+		}
+		checks["redis"] = "ok"
+
+		c.JSON(http.StatusOK, status)
 	})
 
 	router.GET("/debug/queries", func(c *gin.Context) {
